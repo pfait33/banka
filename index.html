@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Kasino – Banka Frfy (offline)</title>
+  <style>
+    :root{
+      --bg:#f6f8fc; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
+      --shadow:0 10px 24px rgba(15,23,42,.08); --radius:14px;
+      --accent:#2563eb; --danger:#e11d48; --ok:#16a34a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans","Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{
+      margin:0; font-family:var(--sans); color:var(--text);
+      background:
+        radial-gradient(900px 500px at 20% -10%, rgba(37,99,235,.10), transparent 60%),
+        radial-gradient(800px 500px at 80% 0%, rgba(22,163,74,.08), transparent 60%),
+        var(--bg);
+    }
+    .topbar{
+      position:sticky; top:0; z-index:10;
+      background: rgba(255,255,255,.86); backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:12px 16px;
+    }
+    .brand__title{font-weight:900; letter-spacing:.2px}
+    .brand__meta{font-size:12px; color:var(--muted)}
+    .topbar__actions{display:flex; gap:10px; flex-wrap:wrap}
+    .container{max-width:1300px; margin:0 auto; padding:14px; display:flex; flex-direction:column; gap:14px;}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+    .card__header{
+      padding:14px 14px 10px 14px; border-bottom:1px solid var(--line);
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    }
+    .card__header h2{margin:0; font-size:16px}
+    .muted{color:var(--muted); font-size:12px}
+    .header-tools{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+
+    .btn{
+      border:1px solid var(--line); background:#fff; color:var(--text);
+      padding:9px 12px; border-radius:12px; cursor:pointer; font-weight:800;
+    }
+    .btn:hover{border-color: rgba(37,99,235,.35)}
+    .btn:disabled{opacity:.55; cursor:not-allowed}
+    .btn-primary{border-color: rgba(37,99,235,.45); background: rgba(37,99,235,.10); color:var(--accent);}
+    .btn-danger{border-color: rgba(225,29,72,.35); background: rgba(225,29,72,.08); color:var(--danger);}
+
+    .input, .textarea{
+      width:100%; border:1px solid var(--line); background:#fff; color:var(--text);
+      padding:10px; border-radius:12px; outline:none;
+    }
+    .input:focus, .textarea:focus{border-color: rgba(37,99,235,.55); box-shadow:0 0 0 4px rgba(37,99,235,.10);}
+    .textarea{min-height:260px; font-family:var(--mono); font-size:12px;}
+
+    .stats{
+      padding:12px 14px 14px 14px; display:grid; grid-template-columns: repeat(4,1fr); gap:10px;
+    }
+    .stat{border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:#fbfdff;}
+    .stat--strong{border-color: rgba(37,99,235,.25); background: rgba(37,99,235,.06);}
+    .stat__label{font-size:12px; color:var(--muted)}
+    .stat__value{font-weight:900; margin-top:4px}
+    .mono{font-family:var(--mono)}
+
+    .grid{display:grid; grid-template-columns: 1.05fr 1.25fr; gap:14px;}
+    .table-wrap{overflow:auto; max-height:56vh;}
+    .table-wrap.small{max-height:34vh;}
+    .table{width:100%; border-collapse:collapse; font-size:13px;}
+    .table thead th{
+      position:sticky; top:0; background:#fff; z-index:2;
+      border-bottom:1px solid var(--line);
+      padding:10px; text-align:left; color:var(--muted); font-size:12px;
+    }
+    .table tbody td{padding:10px; border-bottom:1px solid var(--line); vertical-align:top;}
+    .table tbody tr{cursor:pointer}
+    .table tbody tr:hover{background: rgba(37,99,235,.05)}
+    .table .num{text-align:right; font-family:var(--mono)}
+    .table.small thead th, .table.small tbody td{padding:8px;}
+
+    .footnote{padding:10px 14px 14px 14px; color:var(--muted); font-size:12px;}
+    .empty{margin:14px; padding:14px; border:1px dashed var(--line); border-radius:12px; color:var(--muted); background:#fbfdff;}
+    .hidden{display:none}
+
+    .kid-head{
+      padding:14px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+      border-bottom:1px solid var(--line);
+    }
+    .kid-name{font-size:18px; font-weight:900}
+    .balances{display:flex; gap:10px; flex-wrap:wrap;}
+    .balance{border:1px solid var(--line); border-radius:12px; padding:10px 12px; min-width:160px; background:#fbfdff;}
+    .balance--strong{border-color: rgba(22,163,74,.25); background: rgba(22,163,74,.06);}
+    .balance__label{font-size:12px; color:var(--muted)}
+    .balance__value{font-weight:900; margin-top:4px}
+
+    .kid-edit{padding:14px; border-bottom:1px solid var(--line);}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;}
+    .field{display:flex; flex-direction:column; gap:6px; flex: 1 1 220px;}
+    .field--wide{flex: 1 1 100%;}
+    .field span{font-size:12px; color:var(--muted)}
+
+    .split{padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+    .subcard{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff;}
+    .subcard__header{
+      padding:10px 12px; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .subcard__header h3{margin:0; font-size:14px}
+    .subtools{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .form{
+      padding:12px; display:grid; grid-template-columns: 1fr 1fr; gap:10px; border-bottom:1px solid var(--line);
+    }
+    .form .row{grid-column:1 / -1}
+    .form .hint{grid-column:1 / -1; color:var(--muted); font-size:12px; min-height:16px}
+
+    /* Custom modal (no <dialog>) */
+    .overlay{
+      position:fixed; inset:0; z-index:9999;
+      background: rgba(15,23,42,.45);
+      display:none; align-items:center; justify-content:center;
+      padding:12px;
+    }
+    .overlay.open{display:flex}
+    .modal{
+      width:min(760px, calc(100vw - 24px));
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal.wide{width:min(980px, calc(100vw - 24px))}
+    .modal__header{
+      padding:12px; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modal__header h3{margin:0; font-size:14px}
+    .modal__body{padding:12px}
+    .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+      .split{grid-template-columns:1fr}
+      .stats{grid-template-columns: repeat(2,1fr)}
+      .form{grid-template-columns:1fr}
+      .form-grid{grid-template-columns:1fr}
+      .table-wrap{max-height:46vh}
+    }
+    .hide-sm{display:table-cell}
+    @media (max-width:700px){ .hide-sm{display:none} }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand__title">Kasino – Banka Frfy</div>
+    <div class="brand__meta" id="statusLine">Offline • localStorage</div>
+  </div>
+  <div class="topbar__actions">
+    <button class="btn" id="btnExportJSON">Export JSON</button>
+    <button class="btn" id="btnImportOpen">Import JSON</button>
+  </div>
+</header>
+
+<main class="container">
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <h2>Přehled</h2>
+        <div class="muted">Součty napříč bankou + vyhledání dítěte</div>
+      </div>
+      <div class="header-tools">
+        <input class="input" id="globalSearch" placeholder="Hledat dítě (jméno/přezdívka/tým)..." />
+        <button class="btn" id="btnFocusKid">Najít a vybrat</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat__label">Dětí</div><div class="stat__value" id="statKids">0</div></div>
+      <div class="stat"><div class="stat__label">Volné (součet)</div><div class="stat__value mono" id="statFree">0</div></div>
+      <div class="stat"><div class="stat__label">Zamčeno (součet)</div><div class="stat__value mono" id="statLocked">0</div></div>
+      <div class="stat stat--strong"><div class="stat__label">Celkem (součet)</div><div class="stat__value mono" id="statTotal">0</div></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2>Účty dětí</h2>
+          <div class="muted">Klikni na řádek, nebo použij přepínač vpravo.</div>
+        </div>
+        <div class="header-tools">
+          <button class="btn" id="btnAddKid">+ Přidat dítě</button>
+          <button class="btn" id="btnBulkAdd">Hromadně (jména)</button>
+          <button class="btn" id="btnExportCSV">CSV zůstatky</button>
+          <button class="btn" id="btnExportTxCSV">CSV transakce</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Jméno</th>
+              <th class="hide-sm">Tým</th>
+              <th class="num">Volné</th>
+              <th class="num">Zamčeno</th>
+              <th class="num">Celkem</th>
+            </tr>
+          </thead>
+          <tbody id="kidsTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="footnote">
+        Termíňák: při založení transakce <b>-jistina</b>. Po splatnosti se automaticky připíše <b>+ (jistina+úrok)</b>, zaokrouhleno na celé desítky.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2>Detail účtu</h2>
+          <div class="muted">Přepínání účtů (abecedně)</div>
+        </div>
+        <div class="header-tools">
+          <select class="input" id="kidSwitcher"></select>
+          <button class="btn" id="btnPrint" disabled>Výpis</button>
+        </div>
+      </div>
+
+      <div id="emptyDetail" class="empty">Vyber dítě v tabulce nebo v přepínači.</div>
+
+      <div id="kidDetail" class="hidden">
+        <div class="kid-head">
+          <div>
+            <div class="kid-name" id="kidName">—</div>
+            <div class="muted" id="kidMeta">—</div>
+          </div>
+          <div class="balances">
+            <div class="balance"><div class="balance__label">Volné</div><div class="balance__value mono" id="kidFree">0</div></div>
+            <div class="balance"><div class="balance__label">Zamčeno</div><div class="balance__value mono" id="kidLocked">0</div></div>
+            <div class="balance balance--strong"><div class="balance__label">Celkem</div><div class="balance__value mono" id="kidTotal">0</div></div>
+          </div>
+        </div>
+
+        <div class="kid-edit">
+          <div class="row">
+            <label class="field"><span>Jméno</span><input class="input" id="editName" /></label>
+            <label class="field"><span>Přezdívka</span><input class="input" id="editNick" /></label>
+            <label class="field"><span>Tým/oddíl</span><input class="input" id="editTeam" /></label>
+            <label class="field field--wide"><span>Poznámka</span><input class="input" id="editNote" /></label>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary" id="btnSaveKid">Uložit údaje</button>
+            <button class="btn btn-danger" id="btnDeleteKid">Smazat dítě</button>
+            <div class="muted" id="kidMsg"></div>
+          </div>
+        </div>
+
+        <div class="split">
+          <section class="subcard">
+            <div class="subcard__header">
+              <h3>Transakce</h3>
+              <div class="subtools">
+                <select class="input" id="txFilter">
+                  <option value="all">Vše</option>
+                  <option value="last60">Poslední hodina</option>
+                  <option value="last10">Posledních 10 min</option>
+                  <option value="today">Dnes</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form">
+              <label class="field"><span>Částka (Frf)</span><input class="input" id="txAmount" inputmode="decimal" placeholder="např. 200 nebo -50" /></label>
+              <label class="field"><span>Typ</span>
+                <select class="input" id="txType">
+                  <option value="deposit">Vklad</option>
+                  <option value="withdraw">Výběr</option>
+                  <option value="adjust">Úprava</option>
+                  <option value="other">Jiné</option>
+                </select>
+              </label>
+              <label class="field"><span>Kdo provedl</span><input class="input" id="txBy" placeholder="např. bankéř" /></label>
+              <label class="field field--wide"><span>Poznámka</span><input class="input" id="txNote" placeholder="stručně co a proč" /></label>
+              <div class="row">
+                <button class="btn btn-primary" id="btnAddTx">Přidat</button>
+                <button class="btn" id="btnUndoLast">Vrátit poslední</button>
+              </div>
+              <div class="hint" id="txMsg"></div>
+            </div>
+
+            <div class="table-wrap small">
+              <table class="table small">
+                <thead><tr><th>Čas</th><th>Typ</th><th class="num">Částka</th><th>Poznámka</th><th class="hide-sm">Kdo</th></tr></thead>
+                <tbody id="txTbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="subcard">
+            <div class="subcard__header">
+              <h3>Termínované vklady</h3>
+              <div class="subtools"><button class="btn" id="btnRunMaturity">Vyhodnotit teď</button></div>
+            </div>
+
+            <div class="form">
+              <label class="field"><span>Jistina (Frf)</span><input class="input" id="tdPrincipal" inputmode="decimal" placeholder="např. 300" /></label>
+              <label class="field"><span>Doba uložení (min)</span><input class="input" id="tdMinutes" inputmode="numeric" placeholder="např. 60" /></label>
+              <label class="field"><span>Úrok dle doby</span><input class="input" id="tdRatePreview" disabled value="—" /></label>
+              <label class="field field--wide"><span>Poznámka</span><input class="input" id="tdNote" placeholder="volitelné" /></label>
+              <div class="row"><button class="btn btn-primary" id="btnCreateTD">Založit termíňák</button></div>
+              <div class="hint" id="tdMsg"></div>
+            </div>
+
+            <div class="table-wrap small">
+              <table class="table small">
+                <thead><tr><th>Stav</th><th class="num">Jistina</th><th class="num">Úrok</th><th>Konec</th><th>Zbývá</th></tr></thead>
+                <tbody id="tdTbody"></tbody>
+              </table>
+            </div>
+
+            <div class="footnote">Úrok = <b>2% za každých 15 min</b>. Výplata termíňáku se <b>zaokrouhluje na celé desítky</b>.</div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<!-- Overlays -->
+<div class="overlay" id="ovImport" aria-hidden="true">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <div class="modal__header">
+      <h3 id="importTitle">Import JSON (přepíše data)</h3>
+      <button class="btn" data-close="ovImport">Zavřít</button>
+    </div>
+    <div class="modal__body">
+      <textarea class="textarea" id="importText" placeholder="{ ... }"></textarea>
+      <div class="row">
+        <button class="btn btn-danger" id="btnDoImport">Importovat</button>
+      </div>
+      <div class="muted" id="importMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovAddKid" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addKidTitle">
+    <div class="modal__header">
+      <h3 id="addKidTitle">Přidat dítě</h3>
+      <button class="btn" data-close="ovAddKid">Zavřít</button>
+    </div>
+    <div class="modal__body">
+      <div class="form-grid">
+        <label class="field"><span>Jméno</span><input class="input" id="newName" /></label>
+        <label class="field"><span>Přezdívka</span><input class="input" id="newNick" /></label>
+        <label class="field"><span>Tým</span><input class="input" id="newTeam" /></label>
+        <label class="field field--wide"><span>Poznámka</span><input class="input" id="newNote" /></label>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="btnCreateKid">Vytvořit</button>
+      </div>
+      <div class="muted" id="addKidMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovBulk" aria-hidden="true">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="bulkTitle">
+    <div class="modal__header">
+      <h3 id="bulkTitle">Hromadné založení (1 jméno na řádek)</h3>
+      <button class="btn" data-close="ovBulk">Zavřít</button>
+    </div>
+    <div class="modal__body">
+      <textarea class="textarea" id="bulkNames" placeholder="Jméno Příjmení&#10;..."></textarea>
+      <div class="row">
+        <button class="btn btn-primary" id="btnBulkCreate">Vytvořit</button>
+        <button class="btn" id="btnBulkFillDefault">Vložit výchozí seznam</button>
+      </div>
+      <div class="muted" id="bulkMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Pokud se něco rozbije, ukážeme chybu místo "nic nefunguje".
+  window.addEventListener("error", (e) => {
+    console.error(e.error || e.message);
+    alert("Chyba v aplikaci: " + (e.error?.message || e.message));
+  });
+
+  const DEFAULT_KIDS = [
+    "Adámek Jindřich","Adámek Matěj","Adámek Vojtěch","Beran Mikuláš","Brož Radim","Brožová Valerie",
+    "Brůna Filip","Brůna Oliver","Čermáková Karolína","Černý Matěj","Elešová Zuzana","Gistr Vojtěch",
+    "Hájek Kryštof","Hájková Aneta","Hanzl Michal","Havlenová Ella","Havlenová Klára","Havlíček Maxmilián",
+    "Jáčová Johanka","Janáček Filip","Janeček Jiří","Janečková Štěpánka","Jaroš Daniel","Jordánová Tereza",
+    "Kadlec Josef","Kdýrová Valentýna","Klečka Josef","Klíč Bernard","Masopust Tadeáš","Masopust Vojtěch",
+    "Miškovská Nella","Nolová Berenika","Petr Tomáš","Petrová Kateřina","Pružincová Alexandra","Pružinec Michal",
+    "Rozmanová Štěpánka","Sattler Mark Philip","Sattler Michael Adam","Sejček Benjamin","Stejskalová Barbora",
+    "Stejskalová Markéta","Toropov Jakub","Toropov Jiří","Toropov Štěpán","Vandrovec Vojtěch","Vobořil Václav",
+    "Vojíř Vojtěch","Votavová Jindřiška","Votavová Libuše","Zahradníková Vendula","Zemanová Alžběta",
+    "Adámková Adélka","Teodor Říčan","Cmíral Antonín","Natalie Hieke","Beran Vilda","Horčička Tadeáš"
+  ];
+
+  const STORAGE_KEY = "kasino_banka_v5";
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = new Intl.NumberFormat("cs-CZ");
+  const money = (n) => fmt.format(Math.round(Number(n || 0)));
+  const now = () => Date.now();
+  const isoNow = () => new Date().toISOString();
+  const czDT = (ts) => new Date(ts).toLocaleString("cs-CZ");
+  const clamp = (s, max=200) => String(s ?? "").trim().slice(0, max);
+  const key = (s) => clamp(s, 120).toLowerCase();
+  const uid = () => "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+
+  function parseAmount(input){
+    const raw = clamp(input).replace(/\s+/g,"").replace(",",".");
+    if (!raw) return {ok:false,value:0};
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return {ok:false,value:0};
+    return {ok:true,value:Math.round(v)};
+  }
+  function parseMinutes(input){
+    const raw = clamp(input).replace(/\s+/g,"");
+    if (!raw) return {ok:false,value:0};
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return {ok:false,value:0};
+    return {ok:true,value:Math.max(0,Math.round(v))};
+  }
+  function download(filename, text, mime="text/plain;charset=utf-8"){
+    const blob = new Blob([text], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=filename;
+    document.body.appendChild(a);
+    a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function csvEscape(v){
+    const s = String(v ?? "");
+    if (/[",\n\r;]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  }
+  function escapeHtml(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+  }
+
+  // Modal helpers
+  function openModal(id){
+    const ov = $(id);
+    ov.classList.add("open");
+    ov.setAttribute("aria-hidden","false");
+  }
+  function closeModal(id){
+    const ov = $(id);
+    ov.classList.remove("open");
+    ov.setAttribute("aria-hidden","true");
+  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-close]");
+    if (btn) closeModal(btn.getAttribute("data-close"));
+    // click outside modal closes
+    const ov = e.target.classList?.contains("overlay") ? e.target : null;
+    if (ov) closeModal(ov.id);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape"){
+      ["ovImport","ovAddKid","ovBulk"].forEach(id => closeModal(id));
+    }
+  });
+
+  // 2% za každých 15 min, cap 24%
+  function rateForMinutes(minutes){
+    if (minutes <= 0) return 0;
+    const tier = Math.ceil(minutes/15);
+    return Math.min(2*tier, 24);
+  }
+  function rateLabel(minutes){
+    if (minutes <= 0) return "—";
+    const tier = Math.ceil(minutes/15);
+    return `${rateForMinutes(minutes)}% (stupeň ${tier} / 15 min)`;
+  }
+  function roundToTens(x){ return Math.round(x/10)*10; }
+
+  function defaultState(){ return {version:5, createdAt: isoNow(), kids:[], tx:[], tds:[]}; }
+  function loadState(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    try{
+      const obj = JSON.parse(raw);
+      return {
+        version:5,
+        createdAt: obj.createdAt || isoNow(),
+        kids: Array.isArray(obj.kids) ? obj.kids : [],
+        tx: Array.isArray(obj.tx) ? obj.tx : [],
+        tds: Array.isArray(obj.tds) ? obj.tds : [],
+      };
+    } catch { return defaultState(); }
+  }
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+  let state = loadState();
+  let selectedKidId = null;
+  let timer = null;
+
+  function seedKidsIfEmpty(){
+    if (state.kids.length) return;
+    for (const name of DEFAULT_KIDS){
+      const nm = clamp(name,80);
+      if (!nm) continue;
+      state.kids.push({id:uid(), name:nm, nick:"", team:"", note:"", createdAt: isoNow()});
+    }
+    saveState();
+  }
+
+  function getKid(id){ return state.kids.find(k=>k.id===id) || null; }
+  function sortKidsAlpha(kids){ return [...kids].sort((a,b)=>a.name.localeCompare(b.name,"cs")); }
+
+  function freeBalance(kidId){ return state.tx.filter(t=>t.kidId===kidId).reduce((s,t)=>s+(t.amount||0),0); }
+  function lockedBalance(kidId){
+    return state.tds
+      .filter(td=>td.kidId===kidId && (td.status==="running" || td.status==="matured"))
+      .reduce((s,td)=>s+(td.principal||0),0);
+  }
+  function sumsAll(){
+    let free=0, locked=0;
+    for (const k of state.kids){ free += freeBalance(k.id); locked += lockedBalance(k.id); }
+    return {free, locked, total: free+locked};
+  }
+  function kidTx(kidId){ return state.tx.filter(t=>t.kidId===kidId).sort((a,b)=>b.ts-a.ts); }
+
+  // NEGATIVE FREE DISALLOWED
+  function addTx({kidId, amount, type, note, by, ts}){
+    const kid = getKid(kidId);
+    if (!kid) return {ok:false, msg:"Dítě nenalezeno."};
+    const a = Math.round(Number(amount));
+    if (!Number.isFinite(a) || a===0) return {ok:false, msg:"Částka musí být nenulové číslo."};
+    const newFree = freeBalance(kidId) + a;
+    if (newFree < 0) return {ok:false, msg:`Zakázáno: volný zůstatek by byl záporný (${money(newFree)}).`};
+    const tx = { id: uid(), kidId, ts: Number.isFinite(ts)?ts:now(), amount:a,
+      type: clamp(type,20)||"other", note: clamp(note,200), by: clamp(by,60)
+    };
+    state.tx.push(tx);
+    saveState();
+    return {ok:true, tx};
+  }
+
+  function undoLastTx(kidId){
+    const list = kidTx(kidId);
+    if (!list.length) return {ok:false, msg:"Není co vracet."};
+    const last = list[0];
+    const res = addTx({
+      kidId,
+      amount: -last.amount,
+      type: "adjust",
+      note: `VRÁCENO: ${last.type} ${last.amount} (${last.note || "bez pozn."})`,
+      by: "SYSTEM"
+    });
+    if (!res.ok) return {ok:false, msg:"Nelze vrátit: vedlo by to k zápornému volnému zůstatku."};
+    return {ok:true};
+  }
+
+  function createTermDeposit({kidId, principal, minutes, note, by}){
+    const kid = getKid(kidId);
+    if (!kid) return {ok:false, msg:"Dítě nenalezeno."};
+
+    const p = Math.round(Number(principal));
+    if (!Number.isFinite(p) || p<=0) return {ok:false, msg:"Jistina musí být > 0."};
+
+    const mins = Math.round(Number(minutes));
+    if (!Number.isFinite(mins) || mins<=0) return {ok:false, msg:"Doba uložení musí být >= 1 minuta."};
+
+    const free = freeBalance(kidId);
+    if (p > free) return {ok:false, msg:`Nedostatek volných prostředků. Volné: ${money(free)}.`};
+
+    const ratePct = rateForMinutes(mins);
+    const startTs = now();
+    const dueTs = startTs + mins*60_000;
+
+    const lockTx = addTx({
+      kidId,
+      amount: -p,
+      type: "td_lock",
+      note: `Termíňák založen: ${p} na ${mins} min (${ratePct}%)` + (note ? ` • ${note}` : ""),
+      by: by || ""
+    });
+    if (!lockTx.ok) return lockTx;
+
+    const td = { id: uid(), kidId, principal:p, minutes:mins, ratePct, startTs, dueTs, status:"running",
+      note: clamp(note,200), by: clamp(by,60), payoutTxId:null
+    };
+    state.tds.push(td);
+    saveState();
+    return {ok:true, td};
+  }
+
+  // immediate payout at maturity, payout rounded to tens
+  function maturityCheck({render=true} = {}){
+    const t = now();
+    let paid = 0;
+
+    for (const td of state.tds){
+      if (td.status === "paid") continue;
+      if (t >= td.dueTs){
+        if (td.status === "running") td.status = "matured";
+        const interest = Math.round(td.principal * (td.ratePct/100));
+        const payout = roundToTens(td.principal + interest);
+
+        const tx = addTx({
+          kidId: td.kidId,
+          amount: payout,
+          type: "td_payout",
+          note: `Výplata termíňáku: +${td.principal} +${interest} (${td.ratePct}%) => ${payout} (zaokr. na desítky)` + (td.note ? ` • ${td.note}` : ""),
+          by: td.by || "SYSTEM"
+        });
+
+        if (tx.ok){
+          td.status = "paid";
+          td.payoutTxId = tx.tx.id;
+          paid++;
+        }
+      }
+    }
+
+    if (paid) saveState();
+    if (render) renderAll();
+  }
+
+  function tdRemainingText(td){
+    if (td.status === "paid") return "—";
+    const diff = td.dueTs - now();
+    if (diff <= 0) return "0s";
+    const s = Math.ceil(diff/1000);
+    const m = Math.floor(s/60);
+    const r = s%60;
+    if (m>=60){ const h=Math.floor(m/60); const mm=m%60; return `${h}h ${mm}m`; }
+    return `${m}m ${r}s`;
+  }
+  function tdStatusLabel(td){
+    if (td.status==="running") return "běží";
+    if (td.status==="matured") return "splatné";
+    if (td.status==="paid") return "vyplacené";
+    return td.status;
+  }
+  function typeLabel(type){
+    const map = {deposit:"Vklad", withdraw:"Výběr", adjust:"Úprava", other:"Jiné", td_lock:"Termíňák – zamknutí", td_payout:"Termíňák – výplata"};
+    return map[type] || type;
+  }
+
+  function renderStats(){
+    const s = sumsAll();
+    $("statKids").textContent = money(state.kids.length);
+    $("statFree").textContent = money(s.free);
+    $("statLocked").textContent = money(s.locked);
+    $("statTotal").textContent = money(s.total);
+    $("statusLine").textContent = "Offline • localStorage • termíňáky kontrola každých 5s";
+  }
+
+  function renderKidsTable(){
+    const tbody = $("kidsTbody");
+    tbody.innerHTML = "";
+    const q = key($("globalSearch").value);
+    const kids = sortKidsAlpha(state.kids).filter(k => {
+      if (!q) return true;
+      const hay = `${k.name} ${k.nick||""} ${k.team||""}`.toLowerCase();
+      return hay.includes(q);
+    });
+
+    for (const kid of kids){
+      const free = freeBalance(kid.id);
+      const locked = lockedBalance(kid.id);
+      const total = free + locked;
+
+      const tr = document.createElement("tr");
+      tr.dataset.kid = kid.id;
+      if (kid.id === selectedKidId) tr.style.background = "rgba(37,99,235,.05)";
+      tr.innerHTML = `
+        <td>${escapeHtml(kid.name)}</td>
+        <td class="hide-sm">${escapeHtml(kid.team || "")}</td>
+        <td class="num">${money(free)}</td>
+        <td class="num">${money(locked)}</td>
+        <td class="num"><b>${money(total)}</b></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    if (!kids.length){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="muted">Žádné výsledky.</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderKidSwitcher(){
+    const sel = $("kidSwitcher");
+    const kids = sortKidsAlpha(state.kids);
+    sel.innerHTML = `<option value="">— vyber dítě —</option>` + kids.map(k => `<option value="${k.id}">${escapeHtml(k.name)}</option>`).join("");
+    sel.value = selectedKidId || "";
+  }
+
+  function renderKidTxTable(){
+    const kid = getKid(selectedKidId);
+    const tbody = $("txTbody");
+    tbody.innerHTML = "";
+    if (!kid) return;
+
+    const filter = $("txFilter").value;
+    const list = kidTx(kid.id);
+    const tNow = now();
+
+    const filtered = list.filter(t => {
+      if (filter==="all") return true;
+      const diff = tNow - t.ts;
+      if (filter==="last60") return diff <= 60*60_000;
+      if (filter==="last10") return diff <= 10*60_000;
+      if (filter==="today"){ const d=new Date(); d.setHours(0,0,0,0); return t.ts >= d.getTime(); }
+      return true;
+    });
+
+    for (const t of filtered.slice(0,250)){
+      const tr = document.createElement("tr");
+      const sign = t.amount >= 0 ? "+" : "−";
+      const abs = money(Math.abs(t.amount));
+      const cls = t.amount >= 0 ? "color: var(--ok);" : "color: var(--danger);";
+      tr.innerHTML = `
+        <td>${czDT(t.ts)}</td>
+        <td>${escapeHtml(typeLabel(t.type))}</td>
+        <td class="num mono" style="${cls}">${sign}${abs}</td>
+        <td>${escapeHtml(t.note || "")}</td>
+        <td class="hide-sm">${escapeHtml(t.by || "")}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    if (!filtered.length){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="muted">Žádné transakce.</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderKidTDTable(){
+    const kid = getKid(selectedKidId);
+    const tbody = $("tdTbody");
+    tbody.innerHTML = "";
+    if (!kid) return;
+
+    const list = state.tds.filter(td => td.kidId===kid.id).sort((a,b)=>b.startTs-a.startTs);
+
+    for (const td of list){
+      const interest = Math.round(td.principal*(td.ratePct/100));
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(tdStatusLabel(td))}</td>
+        <td class="num mono">${money(td.principal)}</td>
+        <td class="num mono">${money(interest)} (${td.ratePct}%)</td>
+        <td>${czDT(td.dueTs)}</td>
+        <td class="mono">${escapeHtml(tdRemainingText(td))}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    if (!list.length){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="muted">Žádné termínované vklady.</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderKidDetail(){
+    const kid = selectedKidId ? getKid(selectedKidId) : null;
+    $("btnPrint").disabled = !kid;
+
+    if (!kid){
+      $("emptyDetail").classList.remove("hidden");
+      $("kidDetail").classList.add("hidden");
+      return;
+    }
+
+    $("emptyDetail").classList.add("hidden");
+    $("kidDetail").classList.remove("hidden");
+
+    $("kidName").textContent = kid.name;
+    $("kidMeta").textContent = `${kid.team ? `Tým: ${kid.team} • ` : ""}${kid.note ? `Pozn.: ${kid.note}` : ""}`.trim() || "—";
+
+    $("editName").value = kid.name || "";
+    $("editNick").value = kid.nick || "";
+    $("editTeam").value = kid.team || "";
+    $("editNote").value = kid.note || "";
+
+    const free = freeBalance(kid.id);
+    const locked = lockedBalance(kid.id);
+    $("kidFree").textContent = money(free);
+    $("kidLocked").textContent = money(locked);
+    $("kidTotal").textContent = money(free+locked);
+
+    renderKidTxTable();
+    renderKidTDTable();
+  }
+
+  function renderAll(){
+    renderStats();
+    renderKidsTable();
+    renderKidSwitcher();
+    renderKidDetail();
+  }
+
+  function selectKid(id){
+    selectedKidId = id || null;
+    renderAll();
+  }
+
+  function exportJSON(){
+    const payload = { ...state, exportedAt: isoNow() };
+    download(`kasino-banka-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json;charset=utf-8");
+  }
+  function exportBalancesCSV(){
+    const rows = [["name","nick","team","free","locked","total","note"]];
+    for (const k of sortKidsAlpha(state.kids)){
+      const free = freeBalance(k.id);
+      const locked = lockedBalance(k.id);
+      rows.push([k.name, k.nick||"", k.team||"", free, locked, free+locked, k.note||""]);
+    }
+    const csv = rows.map(r=>r.map(csvEscape).join(";")).join("\n");
+    download(`kasino-zustatky-${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
+  }
+  function exportLedgerCSV(){
+    const kidById = new Map(state.kids.map(k=>[k.id,k]));
+    const rows = [["ts","kid","type","amount","note","by"]];
+    const items = [...state.tx].sort((a,b)=>b.ts-a.ts);
+    for (const t of items){
+      const kid = kidById.get(t.kidId);
+      rows.push([new Date(t.ts).toISOString(), kid?kid.name:"(smazáno)", t.type, t.amount, t.note||"", t.by||""]);
+    }
+    const csv = rows.map(r=>r.map(csvEscape).join(";")).join("\n");
+    download(`kasino-transakce-${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
+  }
+
+  function importJSONText(text){
+    let obj;
+    try{ obj = JSON.parse(text); } catch { return {ok:false, msg:"Neplatný JSON."}; }
+    if (!obj || typeof obj!=="object") return {ok:false, msg:"Neplatná struktura."};
+    if (!Array.isArray(obj.kids) || !Array.isArray(obj.tx) || !Array.isArray(obj.tds)) return {ok:false, msg:"JSON musí obsahovat kids/tx/tds."};
+
+    const merged = defaultState();
+    merged.kids = obj.kids;
+    merged.tx = obj.tx;
+    merged.tds = obj.tds;
+
+    merged.kids.forEach(k=>{ if(!k.id) k.id=uid(); if(!k.name) k.name="Bez jména"; });
+    merged.tx.forEach(t=>{ if(!t.id) t.id=uid(); if(!Number.isFinite(t.ts)) t.ts=now(); });
+    merged.tds.forEach(td=>{ if(!td.id) td.id=uid(); if(!td.status) td.status="running"; });
+
+    state = merged;
+    saveState();
+    return {ok:true};
+  }
+
+  function printStatement(){
+    const kid = getKid(selectedKidId);
+    if (!kid) return;
+
+    const free = freeBalance(kid.id);
+    const locked = lockedBalance(kid.id);
+    const total = free + locked;
+
+    const txs = kidTx(kid.id).slice().reverse();
+    const tds = state.tds.filter(td=>td.kidId===kid.id).slice().sort((a,b)=>a.startTs-b.startTs);
+
+    const html = `
+<!doctype html><html lang="cs"><head><meta charset="utf-8"/>
+<title>Výpis – ${escapeHtml(kid.name)}</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;padding:16px;color:#111}
+  h1{margin:0 0 6px 0}
+  .muted{color:#555;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+  th,td{border-bottom:1px solid #e5e5e5;padding:8px;text-align:left;vertical-align:top}
+  th{background:#f3f3f3}
+  .num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,Consolas,monospace}
+</style></head><body>
+<h1>Výpis účtu – ${escapeHtml(kid.name)}</h1>
+<div class="muted">Tým: ${escapeHtml(kid.team||"—")} • Vygenerováno: ${new Date().toLocaleString("cs-CZ")}</div>
+<p>Volné: <b class="num">${money(free)}</b> • Zamčeno: <b class="num">${money(locked)}</b> • Celkem: <b class="num">${money(total)}</b></p>
+
+<h2>Termínované vklady</h2>
+<table><thead><tr><th>Stav</th><th class="num">Jistina</th><th class="num">Úrok</th><th>Konec</th><th>Pozn.</th></tr></thead><tbody>
+${tds.length ? tds.map(td=>{
+  const interest = Math.round(td.principal*(td.ratePct/100));
+  return `<tr><td>${escapeHtml(tdStatusLabel(td))}</td><td class="num">${money(td.principal)}</td><td class="num">${money(interest)} (${td.ratePct}%)</td><td>${new Date(td.dueTs).toLocaleString("cs-CZ")}</td><td>${escapeHtml(td.note||"")}</td></tr>`;
+}).join("") : `<tr><td colspan="5" class="muted">Žádné.</td></tr>`}
+</tbody></table>
+
+<h2>Transakce</h2>
+<table><thead><tr><th>Čas</th><th>Typ</th><th class="num">Částka</th><th>Pozn.</th><th>Kdo</th></tr></thead><tbody>
+${txs.length ? txs.map(t=>{
+  const sign = t.amount>=0?"+":"−";
+  return `<tr><td>${new Date(t.ts).toLocaleString("cs-CZ")}</td><td>${escapeHtml(typeLabel(t.type))}</td><td class="num">${sign}${money(Math.abs(t.amount))}</td><td>${escapeHtml(t.note||"")}</td><td>${escapeHtml(t.by||"")}</td></tr>`;
+}).join("") : `<tr><td colspan="5" class="muted">Žádné.</td></tr>`}
+</tbody></table>
+
+<script>window.print();<\/script>
+</body></html>`;
+
+    const w = window.open("", "_blank");
+    if (!w) return alert("Povol otevření nového okna pro tisk.");
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function wireUI(){
+    $("btnExportJSON").addEventListener("click", exportJSON);
+
+    $("btnImportOpen").addEventListener("click", () => {
+      $("importText").value = "";
+      $("importMsg").textContent = "";
+      openModal("ovImport");
+    });
+
+    $("btnDoImport").addEventListener("click", () => {
+      if (!confirm("Import JSON přepíše aktuální data. Pokračovat?")) return;
+      const res = importJSONText($("importText").value);
+      if (!res.ok){ $("importMsg").textContent = res.msg; return; }
+      selectedKidId = null;
+      maturityCheck({render:false});
+      renderAll();
+      closeModal("ovImport");
+      alert("Import hotov.");
+    });
+
+    $("btnExportCSV").addEventListener("click", exportBalancesCSV);
+    $("btnExportTxCSV").addEventListener("click", exportLedgerCSV);
+
+    $("kidSwitcher").addEventListener("change", (e) => selectKid(e.target.value));
+    $("btnPrint").addEventListener("click", printStatement);
+
+    $("txFilter").addEventListener("change", renderKidTxTable);
+
+    $("btnAddTx").addEventListener("click", () => {
+      const kid = getKid(selectedKidId);
+      if (!kid) return;
+
+      $("txMsg").textContent = "";
+      const a = parseAmount($("txAmount").value);
+      if (!a.ok || a.value===0){ $("txMsg").textContent = "Zadej platnou částku (ne 0)."; return; }
+
+      const res = addTx({
+        kidId: kid.id,
+        amount: a.value,
+        type: $("txType").value,
+        note: clamp($("txNote").value,200),
+        by: clamp($("txBy").value,60)
+      });
+      if (!res.ok){ $("txMsg").textContent = res.msg; return; }
+
+      $("txAmount").value = "";
+      $("txNote").value = "";
+      renderAll();
+      $("txMsg").textContent = "Uloženo.";
+    });
+
+    $("btnUndoLast").addEventListener("click", () => {
+      const kid = getKid(selectedKidId);
+      if (!kid) return;
+      const res = undoLastTx(kid.id);
+      if (!res.ok){ $("txMsg").textContent = res.msg; return; }
+      renderAll();
+      $("txMsg").textContent = "Vráceno reverzní položkou (SYSTEM).";
+    });
+
+    $("tdMinutes").addEventListener("input", () => {
+      const m = parseMinutes($("tdMinutes").value);
+      $("tdRatePreview").value = (m.ok && m.value>0) ? rateLabel(m.value) : "—";
+    });
+
+    $("btnCreateTD").addEventListener("click", () => {
+      const kid = getKid(selectedKidId);
+      if (!kid) return;
+
+      $("tdMsg").textContent = "";
+      const p = parseAmount($("tdPrincipal").value);
+      const m = parseMinutes($("tdMinutes").value);
+      if (!p.ok || p.value<=0){ $("tdMsg").textContent = "Neplatná jistina."; return; }
+      if (!m.ok || m.value<=0){ $("tdMsg").textContent = "Neplatná doba (min)."; return; }
+
+      const res = createTermDeposit({
+        kidId: kid.id,
+        principal: p.value,
+        minutes: m.value,
+        note: clamp($("tdNote").value,200),
+        by: clamp($("txBy").value,60)
+      });
+      if (!res.ok){ $("tdMsg").textContent = res.msg; return; }
+
+      $("tdPrincipal").value = "";
+      $("tdMinutes").value = "";
+      $("tdRatePreview").value = "—";
+      $("tdNote").value = "";
+      renderAll();
+      $("tdMsg").textContent = `Založeno. Úrok: ${res.td.ratePct}%.`;
+    });
+
+    $("btnRunMaturity").addEventListener("click", () => {
+      maturityCheck({render:true});
+      alert("Vyhodnocení hotové.");
+    });
+
+    $("btnSaveKid").addEventListener("click", () => {
+      const kid = getKid(selectedKidId);
+      if (!kid) return;
+      $("kidMsg").textContent = "";
+
+      const nm = clamp($("editName").value, 80);
+      if (!nm){ $("kidMsg").textContent = "Jméno je povinné."; return; }
+      const conflict = state.kids.some(k => k.id!==kid.id && key(k.name)===key(nm));
+      if (conflict){ $("kidMsg").textContent = "Jiné dítě už má stejné jméno."; return; }
+
+      kid.name = nm;
+      kid.nick = clamp($("editNick").value,40);
+      kid.team = clamp($("editTeam").value,40);
+      kid.note = clamp($("editNote").value,120);
+      kid.updatedAt = isoNow();
+      saveState();
+      renderAll();
+      $("kidMsg").textContent = "Uloženo.";
+    });
+
+    $("btnDeleteKid").addEventListener("click", () => {
+      const kid = getKid(selectedKidId);
+      if (!kid) return;
+
+      const hasActiveTD = state.tds.some(td => td.kidId===kid.id && (td.status==="running"||td.status==="matured"));
+      if (hasActiveTD){ $("kidMsg").textContent = "Nelze smazat: dítě má aktivní termíňák."; return; }
+
+      if (!confirm(`Smazat dítě "${kid.name}"?`)) return;
+      state.kids = state.kids.filter(k=>k.id!==kid.id);
+      saveState();
+      selectedKidId = null;
+      renderAll();
+    });
+
+    $("btnAddKid").addEventListener("click", () => {
+      $("newName").value=""; $("newNick").value=""; $("newTeam").value=""; $("newNote").value="";
+      $("addKidMsg").textContent="";
+      openModal("ovAddKid");
+    });
+
+    $("btnCreateKid").addEventListener("click", () => {
+      const nm = clamp($("newName").value, 80);
+      if (!nm){ $("addKidMsg").textContent="Jméno je povinné."; return; }
+      const exists = state.kids.some(k=>key(k.name)===key(nm));
+      if (exists){ $("addKidMsg").textContent="Dítě s tímto jménem už existuje."; return; }
+
+      const kid = {id:uid(), name:nm, nick:clamp($("newNick").value,40), team:clamp($("newTeam").value,40), note:clamp($("newNote").value,120), createdAt: isoNow()};
+      state.kids.push(kid);
+      saveState();
+      selectedKidId = kid.id;
+      closeModal("ovAddKid");
+      renderAll();
+    });
+
+    $("btnBulkAdd").addEventListener("click", () => {
+      $("bulkNames").value=""; $("bulkMsg").textContent="";
+      openModal("ovBulk");
+    });
+
+    $("btnBulkFillDefault").addEventListener("click", () => {
+      $("bulkNames").value = DEFAULT_KIDS.join("\n");
+      $("bulkMsg").textContent = "Vloženo.";
+    });
+
+    $("btnBulkCreate").addEventListener("click", () => {
+      const lines = $("bulkNames").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      let created=0, skipped=0;
+      for (const name of lines){
+        const nm = clamp(name,80);
+        if (!nm){ skipped++; continue; }
+        if (state.kids.some(k=>key(k.name)===key(nm))){ skipped++; continue; }
+        state.kids.push({id:uid(), name:nm, nick:"", team:"", note:"", createdAt: isoNow()});
+        created++;
+      }
+      saveState();
+      renderAll();
+      $("bulkMsg").textContent = `Hotovo. Vytvořeno: ${created}, přeskočeno: ${skipped}.`;
+    });
+
+    $("btnFocusKid").addEventListener("click", () => {
+      const q = key($("globalSearch").value);
+      if (!q) return;
+      const hit = sortKidsAlpha(state.kids).find(k => (`${k.name} ${k.nick||""} ${k.team||""}`).toLowerCase().includes(q));
+      if (hit) selectKid(hit.id);
+    });
+
+    $("kidsTbody").addEventListener("click", (e) => {
+      const tr = e.target.closest("tr[data-kid]");
+      if (!tr) return;
+      selectKid(tr.dataset.kid);
+    });
+  }
+
+  function restartTimer(){
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+      maturityCheck({render:false});
+      renderStats();
+      renderKidsTable();
+      renderKidDetail();
+      renderKidSwitcher();
+    }, 5000);
+  }
+
+  function boot(){
+    seedKidsIfEmpty();               // vytvoří účty všech uvedených dětí při prázdném úložišti
+    wireUI();
+    maturityCheck({render:false});
+
+    if (!selectedKidId && state.kids.length){
+      selectedKidId = sortKidsAlpha(state.kids)[0].id;
+    }
+    $("tdRatePreview").value = "—";
+
+    restartTimer();
+    renderAll();
+  }
+
+  boot();
+})();
+</script>
+
+</body>
+</html>
