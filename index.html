@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Kasino – Banka Frfy (offline)</title>
+  <title>Bankovní Aplikace Klondike Frfond</title>
   <style>
     :root{
       --bg:#f6f8fc; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
@@ -30,6 +30,7 @@
     .brand__title{font-weight:900; letter-spacing:.2px}
     .brand__meta{font-size:12px; color:var(--muted)}
     .topbar__actions{display:flex; gap:10px; flex-wrap:wrap}
+
     .container{max-width:1300px; margin:0 auto; padding:14px; display:flex; flex-direction:column; gap:14px;}
     .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
     .card__header{
@@ -115,7 +116,7 @@
     .form .row{grid-column:1 / -1}
     .form .hint{grid-column:1 / -1; color:var(--muted); font-size:12px; min-height:16px}
 
-    /* Custom modal (no <dialog>) */
+    /* Custom modals */
     .overlay{
       position:fixed; inset:0; z-index:9999;
       background: rgba(15,23,42,.45);
@@ -156,7 +157,7 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand__title">Kasino – Banka Frfy</div>
+    <div class="brand__title">Bankovní Aplikace Klondike Frfond</div>
     <div class="brand__meta" id="statusLine">Offline • localStorage</div>
   </div>
   <div class="topbar__actions">
@@ -173,7 +174,7 @@
         <div class="muted">Součty napříč bankou + vyhledání dítěte</div>
       </div>
       <div class="header-tools">
-        <input class="input" id="globalSearch" placeholder="Hledat dítě (jméno/přezdívka/tým)..." />
+        <input class="input" id="globalSearch" placeholder="Hledat dítě (jméno/tým)..." />
         <button class="btn" id="btnFocusKid">Najít a vybrat</button>
       </div>
     </div>
@@ -247,24 +248,24 @@
           </div>
         </div>
 
+        <!-- dítě: jen jméno + tým -->
         <div class="kid-edit">
           <div class="row">
             <label class="field"><span>Jméno</span><input class="input" id="editName" /></label>
-            <label class="field"><span>Přezdívka</span><input class="input" id="editNick" /></label>
             <label class="field"><span>Tým/oddíl</span><input class="input" id="editTeam" /></label>
-            <label class="field field--wide"><span>Poznámka</span><input class="input" id="editNote" /></label>
           </div>
           <div class="row">
-            <button class="btn btn-primary" id="btnSaveKid">Uložit údaje</button>
+            <button class="btn btn-primary" id="btnSaveKid">Uložit</button>
             <button class="btn btn-danger" id="btnDeleteKid">Smazat dítě</button>
             <div class="muted" id="kidMsg"></div>
           </div>
         </div>
 
         <div class="split">
+          <!-- vklad/výběr: pouze částka -->
           <section class="subcard">
             <div class="subcard__header">
-              <h3>Transakce</h3>
+              <h3>Vklad / Výběr</h3>
               <div class="subtools">
                 <select class="input" id="txFilter">
                   <option value="all">Vše</option>
@@ -276,19 +277,12 @@
             </div>
 
             <div class="form">
-              <label class="field"><span>Částka (Frf)</span><input class="input" id="txAmount" inputmode="decimal" placeholder="např. 200 nebo -50" /></label>
-              <label class="field"><span>Typ</span>
-                <select class="input" id="txType">
-                  <option value="deposit">Vklad</option>
-                  <option value="withdraw">Výběr</option>
-                  <option value="adjust">Úprava</option>
-                  <option value="other">Jiné</option>
-                </select>
+              <label class="field field--wide">
+                <span>Částka (Frf) – kladné=vklad, záporné=výběr</span>
+                <input class="input" id="txAmount" inputmode="decimal" placeholder="např. 200 nebo -50" />
               </label>
-              <label class="field"><span>Kdo provedl</span><input class="input" id="txBy" placeholder="např. bankéř" /></label>
-              <label class="field field--wide"><span>Poznámka</span><input class="input" id="txNote" placeholder="stručně co a proč" /></label>
               <div class="row">
-                <button class="btn btn-primary" id="btnAddTx">Přidat</button>
+                <button class="btn btn-primary" id="btnAddTx">Zapsat</button>
                 <button class="btn" id="btnUndoLast">Vrátit poslední</button>
               </div>
               <div class="hint" id="txMsg"></div>
@@ -296,7 +290,7 @@
 
             <div class="table-wrap small">
               <table class="table small">
-                <thead><tr><th>Čas</th><th>Typ</th><th class="num">Částka</th><th>Poznámka</th><th class="hide-sm">Kdo</th></tr></thead>
+                <thead><tr><th>Čas</th><th>Typ</th><th class="num">Částka</th></tr></thead>
                 <tbody id="txTbody"></tbody>
               </table>
             </div>
@@ -358,9 +352,7 @@
     <div class="modal__body">
       <div class="form-grid">
         <label class="field"><span>Jméno</span><input class="input" id="newName" /></label>
-        <label class="field"><span>Přezdívka</span><input class="input" id="newNick" /></label>
         <label class="field"><span>Tým</span><input class="input" id="newTeam" /></label>
-        <label class="field field--wide"><span>Poznámka</span><input class="input" id="newNote" /></label>
       </div>
       <div class="row">
         <button class="btn btn-primary" id="btnCreateKid">Vytvořit</button>
@@ -391,12 +383,6 @@
 (() => {
   "use strict";
 
-  // Pokud se něco rozbije, ukážeme chybu místo "nic nefunguje".
-  window.addEventListener("error", (e) => {
-    console.error(e.error || e.message);
-    alert("Chyba v aplikaci: " + (e.error?.message || e.message));
-  });
-
   const DEFAULT_KIDS = [
     "Adámek Jindřich","Adámek Matěj","Adámek Vojtěch","Beran Mikuláš","Brož Radim","Brožová Valerie",
     "Brůna Filip","Brůna Oliver","Čermáková Karolína","Černý Matěj","Elešová Zuzana","Gistr Vojtěch",
@@ -410,7 +396,7 @@
     "Adámková Adélka","Teodor Říčan","Cmíral Antonín","Natalie Hieke","Beran Vilda","Horčička Tadeáš"
   ];
 
-  const STORAGE_KEY = "kasino_banka_v5";
+  const STORAGE_KEY = "kasino_banka_v7";
 
   const $ = (id) => document.getElementById(id);
   const fmt = new Intl.NumberFormat("cs-CZ");
@@ -456,31 +442,18 @@
       .replaceAll('"',"&quot;").replaceAll("'","&#39;");
   }
 
-  // Modal helpers
-  function openModal(id){
-    const ov = $(id);
-    ov.classList.add("open");
-    ov.setAttribute("aria-hidden","false");
-  }
-  function closeModal(id){
-    const ov = $(id);
-    ov.classList.remove("open");
-    ov.setAttribute("aria-hidden","true");
-  }
+  function openModal(id){ const ov = $(id); ov.classList.add("open"); ov.setAttribute("aria-hidden","false"); }
+  function closeModal(id){ const ov = $(id); ov.classList.remove("open"); ov.setAttribute("aria-hidden","true"); }
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-close]");
     if (btn) closeModal(btn.getAttribute("data-close"));
-    // click outside modal closes
     const ov = e.target.classList?.contains("overlay") ? e.target : null;
     if (ov) closeModal(ov.id);
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape"){
-      ["ovImport","ovAddKid","ovBulk"].forEach(id => closeModal(id));
-    }
+    if (e.key === "Escape") ["ovImport","ovAddKid","ovBulk"].forEach(closeModal);
   });
 
-  // 2% za každých 15 min, cap 24%
   function rateForMinutes(minutes){
     if (minutes <= 0) return 0;
     const tier = Math.ceil(minutes/15);
@@ -493,14 +466,14 @@
   }
   function roundToTens(x){ return Math.round(x/10)*10; }
 
-  function defaultState(){ return {version:5, createdAt: isoNow(), kids:[], tx:[], tds:[]}; }
+  function defaultState(){ return {version:7, createdAt: isoNow(), kids:[], tx:[], tds:[]}; }
   function loadState(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
     try{
       const obj = JSON.parse(raw);
       return {
-        version:5,
+        version:7,
         createdAt: obj.createdAt || isoNow(),
         kids: Array.isArray(obj.kids) ? obj.kids : [],
         tx: Array.isArray(obj.tx) ? obj.tx : [],
@@ -519,7 +492,7 @@
     for (const name of DEFAULT_KIDS){
       const nm = clamp(name,80);
       if (!nm) continue;
-      state.kids.push({id:uid(), name:nm, nick:"", team:"", note:"", createdAt: isoNow()});
+      state.kids.push({id:uid(), name:nm, team:"", createdAt: isoNow()});
     }
     saveState();
   }
@@ -540,14 +513,15 @@
   }
   function kidTx(kidId){ return state.tx.filter(t=>t.kidId===kidId).sort((a,b)=>b.ts-a.ts); }
 
-  // NEGATIVE FREE DISALLOWED
   function addTx({kidId, amount, type, note, by, ts}){
     const kid = getKid(kidId);
     if (!kid) return {ok:false, msg:"Dítě nenalezeno."};
     const a = Math.round(Number(amount));
     if (!Number.isFinite(a) || a===0) return {ok:false, msg:"Částka musí být nenulové číslo."};
+
     const newFree = freeBalance(kidId) + a;
     if (newFree < 0) return {ok:false, msg:`Zakázáno: volný zůstatek by byl záporný (${money(newFree)}).`};
+
     const tx = { id: uid(), kidId, ts: Number.isFinite(ts)?ts:now(), amount:a,
       type: clamp(type,20)||"other", note: clamp(note,200), by: clamp(by,60)
     };
@@ -564,7 +538,7 @@
       kidId,
       amount: -last.amount,
       type: "adjust",
-      note: `VRÁCENO: ${last.type} ${last.amount} (${last.note || "bez pozn."})`,
+      note: `VRÁCENO: ${last.type} ${last.amount}`,
       by: "SYSTEM"
     });
     if (!res.ok) return {ok:false, msg:"Nelze vrátit: vedlo by to k zápornému volnému zůstatku."};
@@ -592,20 +566,19 @@
       kidId,
       amount: -p,
       type: "td_lock",
-      note: `Termíňák založen: ${p} na ${mins} min (${ratePct}%)` + (note ? ` • ${note}` : ""),
-      by: by || ""
+      note: `Termíňák: ${p} na ${mins}m (${ratePct}%)` + (note ? ` • ${note}` : ""),
+      by: ""
     });
     if (!lockTx.ok) return lockTx;
 
     const td = { id: uid(), kidId, principal:p, minutes:mins, ratePct, startTs, dueTs, status:"running",
-      note: clamp(note,200), by: clamp(by,60), payoutTxId:null
+      note: clamp(note,200), by: "", payoutTxId:null
     };
     state.tds.push(td);
     saveState();
     return {ok:true, td};
   }
 
-  // immediate payout at maturity, payout rounded to tens
   function maturityCheck({render=true} = {}){
     const t = now();
     let paid = 0;
@@ -621,8 +594,8 @@
           kidId: td.kidId,
           amount: payout,
           type: "td_payout",
-          note: `Výplata termíňáku: +${td.principal} +${interest} (${td.ratePct}%) => ${payout} (zaokr. na desítky)` + (td.note ? ` • ${td.note}` : ""),
-          by: td.by || "SYSTEM"
+          note: `Výplata termíňáku => ${payout}`,
+          by: ""
         });
 
         if (tx.ok){
@@ -653,9 +626,12 @@
     if (td.status==="paid") return "vyplacené";
     return td.status;
   }
-  function typeLabel(type){
-    const map = {deposit:"Vklad", withdraw:"Výběr", adjust:"Úprava", other:"Jiné", td_lock:"Termíňák – zamknutí", td_payout:"Termíňák – výplata"};
-    return map[type] || type;
+
+  function typeLabel(type, amount){
+    const map = {deposit:"Vklad", withdraw:"Výběr", adjust:"Úprava", td_lock:"Termíňák – zamknutí", td_payout:"Termíňák – výplata"};
+    if (map[type]) return map[type];
+    if (typeof amount === "number") return amount > 0 ? "Vklad" : "Výběr";
+    return type;
   }
 
   function renderStats(){
@@ -673,7 +649,7 @@
     const q = key($("globalSearch").value);
     const kids = sortKidsAlpha(state.kids).filter(k => {
       if (!q) return true;
-      const hay = `${k.name} ${k.nick||""} ${k.team||""}`.toLowerCase();
+      const hay = `${k.name} ${k.team||""}`.toLowerCase();
       return hay.includes(q);
     });
 
@@ -735,17 +711,15 @@
       const cls = t.amount >= 0 ? "color: var(--ok);" : "color: var(--danger);";
       tr.innerHTML = `
         <td>${czDT(t.ts)}</td>
-        <td>${escapeHtml(typeLabel(t.type))}</td>
+        <td>${escapeHtml(typeLabel(t.type, t.amount))}</td>
         <td class="num mono" style="${cls}">${sign}${abs}</td>
-        <td>${escapeHtml(t.note || "")}</td>
-        <td class="hide-sm">${escapeHtml(t.by || "")}</td>
       `;
       tbody.appendChild(tr);
     }
 
     if (!filtered.length){
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="5" class="muted">Žádné transakce.</td>`;
+      tr.innerHTML = `<td colspan="3" class="muted">Žádné transakce.</td>`;
       tbody.appendChild(tr);
     }
   }
@@ -792,12 +766,10 @@
     $("kidDetail").classList.remove("hidden");
 
     $("kidName").textContent = kid.name;
-    $("kidMeta").textContent = `${kid.team ? `Tým: ${kid.team} • ` : ""}${kid.note ? `Pozn.: ${kid.note}` : ""}`.trim() || "—";
+    $("kidMeta").textContent = kid.team ? `Tým: ${kid.team}` : "—";
 
     $("editName").value = kid.name || "";
-    $("editNick").value = kid.nick || "";
     $("editTeam").value = kid.team || "";
-    $("editNote").value = kid.note || "";
 
     const free = freeBalance(kid.id);
     const locked = lockedBalance(kid.id);
@@ -823,28 +795,28 @@
 
   function exportJSON(){
     const payload = { ...state, exportedAt: isoNow() };
-    download(`kasino-banka-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json;charset=utf-8");
+    download(`frfond-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json;charset=utf-8");
   }
   function exportBalancesCSV(){
-    const rows = [["name","nick","team","free","locked","total","note"]];
+    const rows = [["name","team","free","locked","total"]];
     for (const k of sortKidsAlpha(state.kids)){
       const free = freeBalance(k.id);
       const locked = lockedBalance(k.id);
-      rows.push([k.name, k.nick||"", k.team||"", free, locked, free+locked, k.note||""]);
+      rows.push([k.name, k.team||"", free, locked, free+locked]);
     }
     const csv = rows.map(r=>r.map(csvEscape).join(";")).join("\n");
-    download(`kasino-zustatky-${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
+    download(`frfond-zustatky-${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
   }
   function exportLedgerCSV(){
     const kidById = new Map(state.kids.map(k=>[k.id,k]));
-    const rows = [["ts","kid","type","amount","note","by"]];
+    const rows = [["ts","kid","type","amount"]];
     const items = [...state.tx].sort((a,b)=>b.ts-a.ts);
     for (const t of items){
       const kid = kidById.get(t.kidId);
-      rows.push([new Date(t.ts).toISOString(), kid?kid.name:"(smazáno)", t.type, t.amount, t.note||"", t.by||""]);
+      rows.push([new Date(t.ts).toISOString(), kid?kid.name:"(smazáno)", t.type, t.amount]);
     }
     const csv = rows.map(r=>r.map(csvEscape).join(";")).join("\n");
-    download(`kasino-transakce-${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
+    download(`frfond-transakce-${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
   }
 
   function importJSONText(text){
@@ -858,8 +830,8 @@
     merged.tx = obj.tx;
     merged.tds = obj.tds;
 
-    merged.kids.forEach(k=>{ if(!k.id) k.id=uid(); if(!k.name) k.name="Bez jména"; });
-    merged.tx.forEach(t=>{ if(!t.id) t.id=uid(); if(!Number.isFinite(t.ts)) t.ts=now(); });
+    merged.kids.forEach(k=>{ if(!k.id) k.id=uid(); if(!k.name) k.name="Bez jména"; if(!("team" in k)) k.team=""; });
+    merged.tx.forEach(t=>{ if(!t.id) t.id=uid(); if(!Number.isFinite(t.ts)) t.ts=now(); if(!t.type) t.type="deposit"; });
     merged.tds.forEach(td=>{ if(!td.id) td.id=uid(); if(!td.status) td.status="running"; });
 
     state = merged;
@@ -895,19 +867,19 @@
 <p>Volné: <b class="num">${money(free)}</b> • Zamčeno: <b class="num">${money(locked)}</b> • Celkem: <b class="num">${money(total)}</b></p>
 
 <h2>Termínované vklady</h2>
-<table><thead><tr><th>Stav</th><th class="num">Jistina</th><th class="num">Úrok</th><th>Konec</th><th>Pozn.</th></tr></thead><tbody>
+<table><thead><tr><th>Stav</th><th class="num">Jistina</th><th class="num">Úrok</th><th>Konec</th></tr></thead><tbody>
 ${tds.length ? tds.map(td=>{
   const interest = Math.round(td.principal*(td.ratePct/100));
-  return `<tr><td>${escapeHtml(tdStatusLabel(td))}</td><td class="num">${money(td.principal)}</td><td class="num">${money(interest)} (${td.ratePct}%)</td><td>${new Date(td.dueTs).toLocaleString("cs-CZ")}</td><td>${escapeHtml(td.note||"")}</td></tr>`;
-}).join("") : `<tr><td colspan="5" class="muted">Žádné.</td></tr>`}
+  return `<tr><td>${escapeHtml(tdStatusLabel(td))}</td><td class="num">${money(td.principal)}</td><td class="num">${money(interest)} (${td.ratePct}%)</td><td>${new Date(td.dueTs).toLocaleString("cs-CZ")}</td></tr>`;
+}).join("") : `<tr><td colspan="4" class="muted">Žádné.</td></tr>`}
 </tbody></table>
 
 <h2>Transakce</h2>
-<table><thead><tr><th>Čas</th><th>Typ</th><th class="num">Částka</th><th>Pozn.</th><th>Kdo</th></tr></thead><tbody>
+<table><thead><tr><th>Čas</th><th>Typ</th><th class="num">Částka</th></tr></thead><tbody>
 ${txs.length ? txs.map(t=>{
   const sign = t.amount>=0?"+":"−";
-  return `<tr><td>${new Date(t.ts).toLocaleString("cs-CZ")}</td><td>${escapeHtml(typeLabel(t.type))}</td><td class="num">${sign}${money(Math.abs(t.amount))}</td><td>${escapeHtml(t.note||"")}</td><td>${escapeHtml(t.by||"")}</td></tr>`;
-}).join("") : `<tr><td colspan="5" class="muted">Žádné.</td></tr>`}
+  return `<tr><td>${new Date(t.ts).toLocaleString("cs-CZ")}</td><td>${escapeHtml(typeLabel(t.type,t.amount))}</td><td class="num">${sign}${money(Math.abs(t.amount))}</td></tr>`;
+}).join("") : `<tr><td colspan="3" class="muted">Žádné.</td></tr>`}
 </tbody></table>
 
 <script>window.print();<\/script>
@@ -922,13 +894,7 @@ ${txs.length ? txs.map(t=>{
 
   function wireUI(){
     $("btnExportJSON").addEventListener("click", exportJSON);
-
-    $("btnImportOpen").addEventListener("click", () => {
-      $("importText").value = "";
-      $("importMsg").textContent = "";
-      openModal("ovImport");
-    });
-
+    $("btnImportOpen").addEventListener("click", () => { $("importText").value=""; $("importMsg").textContent=""; openModal("ovImport"); });
     $("btnDoImport").addEventListener("click", () => {
       if (!confirm("Import JSON přepíše aktuální data. Pokračovat?")) return;
       const res = importJSONText($("importText").value);
@@ -956,19 +922,20 @@ ${txs.length ? txs.map(t=>{
       const a = parseAmount($("txAmount").value);
       if (!a.ok || a.value===0){ $("txMsg").textContent = "Zadej platnou částku (ne 0)."; return; }
 
+      const inferredType = a.value > 0 ? "deposit" : "withdraw";
+
       const res = addTx({
         kidId: kid.id,
         amount: a.value,
-        type: $("txType").value,
-        note: clamp($("txNote").value,200),
-        by: clamp($("txBy").value,60)
+        type: inferredType,
+        note: "",
+        by: ""
       });
       if (!res.ok){ $("txMsg").textContent = res.msg; return; }
 
       $("txAmount").value = "";
-      $("txNote").value = "";
       renderAll();
-      $("txMsg").textContent = "Uloženo.";
+      $("txMsg").textContent = (inferredType === "deposit") ? "Vklad zapsán." : "Výběr zapsán.";
     });
 
     $("btnUndoLast").addEventListener("click", () => {
@@ -1000,7 +967,7 @@ ${txs.length ? txs.map(t=>{
         principal: p.value,
         minutes: m.value,
         note: clamp($("tdNote").value,200),
-        by: clamp($("txBy").value,60)
+        by: ""
       });
       if (!res.ok){ $("tdMsg").textContent = res.msg; return; }
 
@@ -1012,10 +979,7 @@ ${txs.length ? txs.map(t=>{
       $("tdMsg").textContent = `Založeno. Úrok: ${res.td.ratePct}%.`;
     });
 
-    $("btnRunMaturity").addEventListener("click", () => {
-      maturityCheck({render:true});
-      alert("Vyhodnocení hotové.");
-    });
+    $("btnRunMaturity").addEventListener("click", () => { maturityCheck({render:true}); alert("Vyhodnocení hotové."); });
 
     $("btnSaveKid").addEventListener("click", () => {
       const kid = getKid(selectedKidId);
@@ -1028,9 +992,7 @@ ${txs.length ? txs.map(t=>{
       if (conflict){ $("kidMsg").textContent = "Jiné dítě už má stejné jméno."; return; }
 
       kid.name = nm;
-      kid.nick = clamp($("editNick").value,40);
       kid.team = clamp($("editTeam").value,40);
-      kid.note = clamp($("editNote").value,120);
       kid.updatedAt = isoNow();
       saveState();
       renderAll();
@@ -1052,7 +1014,7 @@ ${txs.length ? txs.map(t=>{
     });
 
     $("btnAddKid").addEventListener("click", () => {
-      $("newName").value=""; $("newNick").value=""; $("newTeam").value=""; $("newNote").value="";
+      $("newName").value=""; $("newTeam").value="";
       $("addKidMsg").textContent="";
       openModal("ovAddKid");
     });
@@ -1063,7 +1025,7 @@ ${txs.length ? txs.map(t=>{
       const exists = state.kids.some(k=>key(k.name)===key(nm));
       if (exists){ $("addKidMsg").textContent="Dítě s tímto jménem už existuje."; return; }
 
-      const kid = {id:uid(), name:nm, nick:clamp($("newNick").value,40), team:clamp($("newTeam").value,40), note:clamp($("newNote").value,120), createdAt: isoNow()};
+      const kid = {id:uid(), name:nm, team:clamp($("newTeam").value,40), createdAt: isoNow()};
       state.kids.push(kid);
       saveState();
       selectedKidId = kid.id;
@@ -1071,15 +1033,8 @@ ${txs.length ? txs.map(t=>{
       renderAll();
     });
 
-    $("btnBulkAdd").addEventListener("click", () => {
-      $("bulkNames").value=""; $("bulkMsg").textContent="";
-      openModal("ovBulk");
-    });
-
-    $("btnBulkFillDefault").addEventListener("click", () => {
-      $("bulkNames").value = DEFAULT_KIDS.join("\n");
-      $("bulkMsg").textContent = "Vloženo.";
-    });
+    $("btnBulkAdd").addEventListener("click", () => { $("bulkNames").value=""; $("bulkMsg").textContent=""; openModal("ovBulk"); });
+    $("btnBulkFillDefault").addEventListener("click", () => { $("bulkNames").value = DEFAULT_KIDS.join("\n"); $("bulkMsg").textContent = "Vloženo."; });
 
     $("btnBulkCreate").addEventListener("click", () => {
       const lines = $("bulkNames").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1088,7 +1043,7 @@ ${txs.length ? txs.map(t=>{
         const nm = clamp(name,80);
         if (!nm){ skipped++; continue; }
         if (state.kids.some(k=>key(k.name)===key(nm))){ skipped++; continue; }
-        state.kids.push({id:uid(), name:nm, nick:"", team:"", note:"", createdAt: isoNow()});
+        state.kids.push({id:uid(), name:nm, team:"", createdAt: isoNow()});
         created++;
       }
       saveState();
@@ -1099,7 +1054,7 @@ ${txs.length ? txs.map(t=>{
     $("btnFocusKid").addEventListener("click", () => {
       const q = key($("globalSearch").value);
       if (!q) return;
-      const hit = sortKidsAlpha(state.kids).find(k => (`${k.name} ${k.nick||""} ${k.team||""}`).toLowerCase().includes(q));
+      const hit = sortKidsAlpha(state.kids).find(k => (`${k.name} ${k.team||""}`).toLowerCase().includes(q));
       if (hit) selectKid(hit.id);
     });
 
@@ -1121,21 +1076,13 @@ ${txs.length ? txs.map(t=>{
     }, 5000);
   }
 
-  function boot(){
-    seedKidsIfEmpty();               // vytvoří účty všech uvedených dětí při prázdném úložišti
-    wireUI();
-    maturityCheck({render:false});
-
-    if (!selectedKidId && state.kids.length){
-      selectedKidId = sortKidsAlpha(state.kids)[0].id;
-    }
-    $("tdRatePreview").value = "—";
-
-    restartTimer();
-    renderAll();
-  }
-
-  boot();
+  seedKidsIfEmpty();
+  wireUI();
+  maturityCheck({render:false});
+  if (!selectedKidId && state.kids.length) selectedKidId = sortKidsAlpha(state.kids)[0].id;
+  $("tdRatePreview").value = "—";
+  restartTimer();
+  renderAll();
 })();
 </script>
 
