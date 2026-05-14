@@ -422,6 +422,8 @@
   ];
 
   const STORAGE_KEY = "kasino_banka_v7";
+  const BANK_DOC_COLLECTION = "banks";
+  const BANK_DOC_ID = "klondike-frfond";
   const FIREBASE_WEB_SDK_VERSION = "10.12.2";
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBxEwRc8nUtF8hyDeSHErMTGuorPs3vZGs",
@@ -500,22 +502,29 @@
   }
   function roundToTens(x){ return Math.round(x/10)*10; }
 
-  function defaultState(){ return {version:7, createdAt: isoNow(), kids:[], tx:[], tds:[]}; }
+  function defaultState(){ return {version:7, createdAt: isoNow(), updatedAt: isoNow(), kids:[], tx:[], tds:[]}; }
+  function normalizeState(obj){
+    return {
+      version:7,
+      createdAt: obj?.createdAt || isoNow(),
+      updatedAt: obj?.updatedAt || isoNow(),
+      kids: Array.isArray(obj?.kids) ? obj.kids : [],
+      tx: Array.isArray(obj?.tx) ? obj.tx : [],
+      tds: Array.isArray(obj?.tds) ? obj.tds : [],
+    };
+  }
   function loadState(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
     try{
-      const obj = JSON.parse(raw);
-      return {
-        version:7,
-        createdAt: obj.createdAt || isoNow(),
-        kids: Array.isArray(obj.kids) ? obj.kids : [],
-        tx: Array.isArray(obj.tx) ? obj.tx : [],
-        tds: Array.isArray(obj.tds) ? obj.tds : [],
-      };
+      return normalizeState(JSON.parse(raw));
     } catch { return defaultState(); }
   }
-  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function saveState(){
+    state.updatedAt = isoNow();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    queueCloudSave();
+  }
 
   let state = loadState();
   let selectedKidId = null;
@@ -523,22 +532,31 @@
   let isAuthenticated = false;
   let firebaseAuthApi = null;
   let firebaseAuthReady = null;
+  let firebaseDbApi = null;
+  let cloudUnsubscribe = null;
+  let cloudReady = false;
+  let applyingRemoteState = false;
+  let cloudSaveTimer = null;
+  let lastCloudJson = "";
 
   function setTopbarAuthState(){
     $("btnLogout").classList.toggle("hidden", !isAuthenticated);
     $("btnExportJSON").classList.toggle("hidden", !isAuthenticated);
     $("btnImportOpen").classList.toggle("hidden", !isAuthenticated);
     $("statusLine").textContent = isAuthenticated
-      ? "Offline • localStorage • termíňáky kontrola každých 5s"
-      : "Uzamčeno • přihlášení vyžadováno";
+      ? (cloudReady ? "Firebase - sdileno mezi zarizenimi - terminaky kontrola kazdych 5s" : "Firebase - nacitam databazi...")
+      : "Uzamceno - prihlaseni pres Firebase vyzadovano";
   }
 
   function setAuthenticated(value){
     isAuthenticated = Boolean(value);
     if (isAuthenticated){
-      if (!selectedKidId && state.kids.length) selectedKidId = sortKidsAlpha(state.kids)[0].id;
+      connectCloudState();
     } else {
       selectedKidId = null;
+      cloudReady = false;
+      if (typeof cloudUnsubscribe === "function") cloudUnsubscribe();
+      cloudUnsubscribe = null;
     }
 
     $("loginView").classList.toggle("hidden", isAuthenticated);
@@ -551,16 +569,26 @@
     if (firebaseAuthReady) return firebaseAuthReady;
     firebaseAuthReady = Promise.all([
       import(`https://www.gstatic.com/firebasejs/${FIREBASE_WEB_SDK_VERSION}/firebase-app.js`),
-      import(`https://www.gstatic.com/firebasejs/${FIREBASE_WEB_SDK_VERSION}/firebase-auth.js`)
-    ]).then(([appMod, authMod]) => {
-      const appName = "klondike-banka-auth";
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_WEB_SDK_VERSION}/firebase-auth.js`),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_WEB_SDK_VERSION}/firebase-firestore.js`)
+    ]).then(([appMod, authMod, firestoreMod]) => {
+      const appName = "klondike-banka";
       const existing = appMod.getApps().find(app => app.name === appName);
       const firebaseApp = existing || appMod.initializeApp(FIREBASE_CONFIG, appName);
       const auth = authMod.getAuth(firebaseApp);
+      const db = firestoreMod.getFirestore(firebaseApp);
       firebaseAuthApi = {
         auth,
         signInWithEmailAndPassword: authMod.signInWithEmailAndPassword,
         signOut: authMod.signOut
+      };
+      firebaseDbApi = {
+        db,
+        doc: firestoreMod.doc,
+        getDoc: firestoreMod.getDoc,
+        onSnapshot: firestoreMod.onSnapshot,
+        setDoc: firestoreMod.setDoc,
+        serverTimestamp: firestoreMod.serverTimestamp
       };
       authMod.onAuthStateChanged(auth, user => {
         const ok = !!user && !user.isAnonymous && user.providerData?.some(provider => provider.providerId === "password");
@@ -568,11 +596,98 @@
       });
       return firebaseAuthApi;
     }).catch(error => {
-      console.warn("Firebase auth load failed:", error);
+      console.warn("Firebase load failed:", error);
       $("loginMsg").textContent = "Firebase se nepodarilo nacist.";
       throw error;
     });
     return firebaseAuthReady;
+  }
+
+  function getCloudRef(){
+    if (!firebaseDbApi) return null;
+    return firebaseDbApi.doc(firebaseDbApi.db, BANK_DOC_COLLECTION, BANK_DOC_ID);
+  }
+
+  function createSeedState(){
+    const next = defaultState();
+    for (const name of DEFAULT_KIDS){
+      const nm = clamp(name, 80);
+      if (!nm) continue;
+      next.kids.push({id: uid(), name: nm, team: "", createdAt: isoNow()});
+    }
+    next.updatedAt = isoNow();
+    return next;
+  }
+
+  function applyRemoteState(nextState){
+    applyingRemoteState = true;
+    state = normalizeState(nextState);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    lastCloudJson = JSON.stringify(state);
+    if (!selectedKidId && state.kids.length) selectedKidId = sortKidsAlpha(state.kids)[0].id;
+    if (selectedKidId && !state.kids.some(k => k.id === selectedKidId)) selectedKidId = null;
+    cloudReady = true;
+    applyingRemoteState = false;
+    setTopbarAuthState();
+    renderAll();
+  }
+
+  async function connectCloudState(){
+    if (!firebaseDbApi || !firebaseAuthApi?.auth?.currentUser || cloudUnsubscribe) return;
+    const ref = getCloudRef();
+    setTopbarAuthState();
+
+    try{
+      const firstSnap = await firebaseDbApi.getDoc(ref);
+      if (!firstSnap.exists()){
+        const local = loadState();
+        const seed = local.kids.length || local.tx.length || local.tds.length ? local : createSeedState();
+        await firebaseDbApi.setDoc(ref, {
+          ...normalizeState(seed),
+          updatedAt: isoNow(),
+          updatedBy: firebaseAuthApi.auth.currentUser.uid,
+          serverUpdatedAt: firebaseDbApi.serverTimestamp()
+        });
+      }
+    } catch (error){
+      console.warn("Bank cloud init failed:", error);
+      $("statusLine").textContent = "Firebase - chyba nacitani databaze";
+      return;
+    }
+
+    cloudUnsubscribe = firebaseDbApi.onSnapshot(ref, snap => {
+      if (!snap.exists()) return;
+      applyRemoteState(snap.data());
+    }, error => {
+      console.warn("Bank cloud listener failed:", error);
+      $("statusLine").textContent = "Firebase - chyba synchronizace";
+    });
+  }
+
+  function queueCloudSave(){
+    if (applyingRemoteState || !isAuthenticated || !cloudReady || !firebaseDbApi || !firebaseAuthApi?.auth?.currentUser) return;
+    const payload = normalizeState(state);
+    const fingerprint = JSON.stringify(payload);
+    if (fingerprint === lastCloudJson) return;
+
+    if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(async () => {
+      cloudSaveTimer = null;
+      try{
+        lastCloudJson = fingerprint;
+        await firebaseDbApi.setDoc(getCloudRef(), {
+          ...payload,
+          updatedAt: isoNow(),
+          updatedBy: firebaseAuthApi.auth.currentUser.uid,
+          serverUpdatedAt: firebaseDbApi.serverTimestamp()
+        });
+        setTopbarAuthState();
+      } catch (error){
+        console.warn("Bank cloud save failed:", error);
+        lastCloudJson = "";
+        $("statusLine").textContent = "Firebase - zapis se nepodaril";
+      }
+    }, 500);
   }
 
   async function handleLogin(){
@@ -750,7 +865,7 @@
     $("statFree").textContent = money(s.free);
     $("statLocked").textContent = money(s.locked);
     $("statTotal").textContent = money(s.total);
-    $("statusLine").textContent = "Offline • localStorage • Firebase prihlaseno • terminaky kontrola kazdych 5s";
+    setTopbarAuthState();
   }
 
   function renderKidsTable(){
@@ -897,7 +1012,7 @@
   }
 
   function renderAll(){
-    if (!isAuthenticated){
+    if (!isAuthenticated || !cloudReady){
       setTopbarAuthState();
       return;
     }
@@ -1206,7 +1321,7 @@ ${txs.length ? txs.map(t=>{
     if (timer) clearInterval(timer);
     timer = setInterval(() => {
       maturityCheck({render:false});
-      if (isAuthenticated){
+      if (isAuthenticated && cloudReady){
         renderStats();
         renderKidsTable();
         renderKidDetail();
